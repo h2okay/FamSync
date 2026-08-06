@@ -1960,28 +1960,14 @@
         placeholder: "z.B. 4 Jahre, 8 Jahre",
         bedingt: (a) => a["fs_geschwister"] === "Ja"
       },
-      // 6: Betreuungsform
-      {
-        id: "fs_betreuungsform", typ: "auswahl_mehrfach",
-        block: null,
-        frage: "Welche Betreuungsform hat das Studienkind?",
-        optionen: ["Krippe", "Kindergarten", "Hort", "Schule", "Keine institutionelle Betreuung", "Sonstiges"]
-      },
-      // 7: Stunden Betreuung
-      {
-        id: "fs_betreuung_stunden", typ: "text",
-        block: null,
-        frage: "Wie viele Stunden pro Woche wird das Studienkind betreut?",
-        placeholder: "Stunden pro Woche"
-      },
-      // 8: Weitere betreuende Personen?
+      // 6: Weitere betreuende Personen?
       {
         id: "fs_weitere_personen", typ: "auswahl",
         block: null,
         frage: "Gibt es weitere betreuende Personen im Haushalt?",
         optionen: ["Ja", "Nein"]
       },
-      // 9: Wer? (bedingt)
+      // 7: Wer? (bedingt)
       {
         id: "fs_weitere_personen_wer", typ: "text",
         block: null,
@@ -1989,7 +1975,7 @@
         placeholder: "z.B. Großeltern, Au-pair",
         bedingt: (a) => a["fs_weitere_personen"] === "Ja"
       },
-      // 10: Anmerkungen
+      // 8: Anmerkungen
       {
         id: "fs_anmerkungen", typ: "text_lang",
         block: "Anmerkungen",
