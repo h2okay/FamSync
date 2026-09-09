@@ -47,6 +47,44 @@
     }
     .cond-btn:hover { border-color: #555; color: #bbb; }
     .cond-btn.aktiv { border-color: #c8ff00; color: #c8ff00; background: #131a00; }
+    .vl-btn {
+      background: transparent; border: 2px solid #333; color: #777;
+      font-family: 'Courier New', monospace; font-size: 12px; letter-spacing: 0.1em;
+      padding: 8px 16px; cursor: pointer; transition: all 0.15s;
+    }
+    .vl-btn:hover { border-color: #555; color: #bbb; }
+    .vl-btn.aktiv { border-color: #b98cff; color: #b98cff; background: #150d22; }
+    /* Timer als Leiste am oberen Rand — schiebt den Inhalt nach unten,
+       überdeckt daher niemals Buttons (auch nicht im Hochformat). */
+    #timer-box {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 5000; display: none;
+      flex-direction: row; align-items: center; justify-content: center; gap: clamp(14px, 3vw, 40px);
+      background: #000; border-bottom: 4px solid #4bb3e8;
+      padding: 10px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    }
+    body.timer-aktiv { padding-top: clamp(96px, 13vw, 130px); }
+
+    #timer-label {
+      font-size: clamp(12px, 1.8vw, 17px); letter-spacing: 0.2em;
+      color: #aaa; text-transform: uppercase; white-space: nowrap;
+    }
+    #timer-display {
+      font-family: 'Courier New', monospace; font-weight: bold;
+      font-size: clamp(46px, 8vw, 84px);
+      color: #4bb3e8; line-height: 1.05; letter-spacing: 0.02em;
+    }
+    #timer-box.warnung { border-bottom-color: #e8a33d; }
+    #timer-box.warnung #timer-display { color: #e8a33d; }
+    #timer-box.fertig { border-bottom-color: #e84b4b; animation: blinken 0.7s steps(1) infinite; }
+    #timer-box.fertig #timer-display { color: #e84b4b; }
+    @keyframes blinken { 50% { background: #2a0000; } }
+    #timer-stop {
+      background: transparent; border: 1px solid #444; color: #888;
+      font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 0.1em;
+      padding: 6px 14px; cursor: pointer; white-space: nowrap;
+    }
+    #timer-stop:hover { border-color: #888; color: #ccc; }
+
     .phase-label {
       font-size: 11px; letter-spacing: 0.25em; color: #666; text-transform: uppercase;
       margin: 1.6rem 0 0.9rem; border-bottom: 1px solid #1e1e1e; padding-bottom: 0.5rem;
@@ -110,6 +148,12 @@
 </head>
 <body>
 
+<div id="timer-box">
+  <div id="timer-label"></div>
+  <div id="timer-display">00:00</div>
+  <button id="timer-stop" onclick="timerStop()">Ausblenden</button>
+</div>
+
 <div id="wrap">
   <h1>Standalone Admin — Zeitstempel</h1>
 
@@ -119,6 +163,9 @@
     <label style="font-size:12px;color:#888;letter-spacing:0.1em;margin-left:1.4rem;">Bedingung:</label>
     <button class="cond-btn" id="cond-ftsst" onclick="setBedingung('f-TSST', this)">f-TSST</button>
     <button class="cond-btn" id="cond-tsst" onclick="setBedingung('TSST', this)">TSST</button>
+    <label style="font-size:12px;color:#888;letter-spacing:0.1em;margin-left:1.4rem;">VL:</label>
+    <button class="vl-btn" id="vl-1" onclick="setVL('VL1', this)">VL1</button>
+    <button class="vl-btn" id="vl-2" onclick="setVL('VL2', this)">VL2</button>
   </div>
 
   <p class="phase-label">Vor (f-)TSST</p>
@@ -174,6 +221,103 @@
 <script>
   let ereignisse = JSON.parse(localStorage.getItem("sa_admin_ereignisse") || "[]");
   let bedingung = localStorage.getItem("sa_admin_bedingung") || "f-TSST";
+  let vl = localStorage.getItem("sa_admin_vl") || "VL1";
+
+  // ── VERSUCHSLEITUNG (VL1 / VL2) ────────────────────────
+  function setVL(wert, btn) {
+    vl = wert;
+    localStorage.setItem("sa_admin_vl", wert);
+    document.querySelectorAll(".vl-btn").forEach(b => b.classList.remove("aktiv", "hinweis"));
+    if (btn) btn.classList.add("aktiv");
+    else {
+      const el = document.getElementById(wert === "VL2" ? "vl-2" : "vl-1");
+      if (el) el.classList.add("aktiv");
+    }
+  }
+
+  // ── TIMER ──────────────────────────────────────────────
+  // Startet automatisch beim Klick auf bestimmte Zeitstempel-Buttons.
+  const TIMER_REGELN = [
+    { passt: n => /^Messung/.test(n),            sekunden: 120, label: "Messung" },
+    { passt: n => n === "Start EKG: Baseline",   sekunden: 600, label: "EKG-Baseline" },
+    { passt: n => n === "Start Interaktion",     sekunden: 600, label: "Interaktion" }
+  ];
+
+  let timerInterval = null;
+
+  function timerFuerEreignis(name) {
+    const regel = TIMER_REGELN.find(r => r.passt(name));
+    if (regel) timerStart(regel.sekunden, regel.label);
+  }
+
+  function timerStart(sekunden, label) {
+    const ende = Date.now() + sekunden * 1000;
+    localStorage.setItem("sa_admin_timer", JSON.stringify({ ende, label }));
+    timerAnzeigen();
+  }
+
+  function timerAnzeigen() {
+    const daten = JSON.parse(localStorage.getItem("sa_admin_timer") || "null");
+    if (!daten) return;
+    if (timerInterval) clearInterval(timerInterval);
+    const box = document.getElementById("timer-box");
+    box.classList.remove("fertig", "warnung");
+    document.getElementById("timer-label").textContent = daten.label;
+    box.style.display = "flex";
+    document.body.classList.add("timer-aktiv");
+    timerTick(daten);
+    timerInterval = setInterval(() => timerTick(daten), 250);
+  }
+
+  function timerTick(daten) {
+    const restMs = daten.ende - Date.now();
+    const box = document.getElementById("timer-box");
+    const anzeige = document.getElementById("timer-display");
+
+    if (restMs <= 0) {
+      anzeige.textContent = "00:00";
+      box.classList.remove("warnung");
+      if (!box.classList.contains("fertig")) {
+        box.classList.add("fertig");
+        timerAlarm();
+      }
+      clearInterval(timerInterval);
+      timerInterval = null;
+      return;
+    }
+    const s = Math.ceil(restMs / 1000);
+    anzeige.textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" +
+                          String(s % 60).padStart(2, "0");
+    box.classList.toggle("warnung", s <= 15);
+  }
+
+  function timerStop() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    localStorage.removeItem("sa_admin_timer");
+    localStorage.removeItem("sa_admin_vl");
+    const box = document.getElementById("timer-box");
+    box.style.display = "none";
+    box.classList.remove("fertig", "warnung");
+    document.body.classList.remove("timer-aktiv");
+  }
+
+  function timerAlarm() {
+    // Piepton ohne externe Datei (Web Audio API) — funktioniert offline
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.45, 0.9].forEach(v => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.25, ctx.currentTime + v);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + v + 0.3);
+        osc.start(ctx.currentTime + v);
+        osc.stop(ctx.currentTime + v + 0.3);
+      });
+    } catch (e) { /* Ton nicht möglich, Blinken reicht */ }
+    if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]);
+  }
 
   // ── BEDINGUNG (f-TSST / TSST) ──────────────────────────
   function setBedingung(wert, btn) {
@@ -223,6 +367,9 @@
       box.appendChild(btn);
     });
     markiereGeklickteButtons();
+
+  // Laufenden Timer nach einem Reload fortsetzen
+  timerAnzeigen();
   }
   const triadInput = document.getElementById("triad-input");
   triadInput.value = localStorage.getItem("sa_admin_triadId") || "";
@@ -232,6 +379,7 @@
 
   // Bedingung + TSST-Buttons initialisieren
   setBedingung(bedingung, null);
+  setVL(vl, null);
 
   // Bereits geloggte Ereignisse beim Laden anzeigen
   if (ereignisse.length > 0) {
@@ -249,6 +397,7 @@
     const eintrag = {
       triad_id: triadInput.value.trim() || "—",
       bedingung: bedingung,
+      vl: vl,
       event: name,
       time: jetzt.getTime(),
       server_timestamp: ts
@@ -261,6 +410,7 @@
     setTimeout(() => { btn.textContent = name; }, 2000);
 
     addLogEntry(eintrag);
+    timerFuerEreignis(name);
   }
 
   function addLogEntry(eintrag) {
@@ -352,6 +502,7 @@
     const eintrag = {
       triad_id: triadInput.value.trim() || "—",
       bedingung: bedingung,
+      vl: vl,
       event: "Zeitabgleich",
       notiz: "Quelle: " + beste.api + " | " + messungen.length + " Messungen",
       offset_ms: beste.offset,
@@ -383,6 +534,7 @@
     const eintrag = {
       triad_id: triadInput.value.trim() || "—",
       bedingung: bedingung,
+      vl: vl,
       event: "Notiz",
       notiz: text,
       time: jetzt.getTime(),
@@ -400,6 +552,7 @@
     localStorage.removeItem("sa_admin_ereignisse");
     localStorage.removeItem("sa_admin_triadId");
     localStorage.removeItem("sa_admin_bedingung");
+    localStorage.removeItem("sa_admin_timer");
     location.reload();
   }
 
@@ -408,7 +561,7 @@
       document.getElementById("export-msg").textContent = "Keine Ereignisse vorhanden.";
       return;
     }
-    const cols = ["triad_id", "bedingung", "event", "notiz", "offset_ms", "rtt_ms", "time", "server_timestamp"];
+    const cols = ["triad_id", "bedingung", "vl", "event", "notiz", "offset_ms", "rtt_ms", "time", "server_timestamp"];
     const csvLines = [cols.join(",")];
     ereignisse.forEach(entry => {
       const row = cols.map(col => '"' + String(entry[col] ?? "").replace(/"/g, '""') + '"');
