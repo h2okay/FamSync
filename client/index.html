@@ -1124,15 +1124,18 @@
         fragebogen: "ECR-K"
       });
     } else if (type === "PSSK") {
+      const PSSK_STUFEN = ["nie", "ein wenig", "manchmal", "oft"];
+      const jung = (altersgruppe === "u13");
       zeigeFragen({
         titel: "PSSK",
         anweisung: "Die folgenden Fragen beziehen sich auf deine Gefühle und Gedanken während der letzten Woche.",
         fragen: STRESS_KIND_FRAGEN,
-        labelLinks: "nie",
-        labelRechts: "oft",
-        skalaUnten: ["nie", "ein wenig", "manchmal", "oft"],
         skala: 4,
-        groessenSkala: (altersgruppe === "u13"),
+        // Unter 13: Kreise mit Beschriftung darunter. Ab 13: beschriftete Buttons.
+        // In beiden Fällen ohne Zahlen — gespeichert wird trotzdem 1–4.
+        groessenSkala: jung,
+        skalaUnten: jung ? PSSK_STUFEN : null,
+        anzeigeBeschriftungen: jung ? null : PSSK_STUFEN,
         fragebogen: "PSSK"
       });
     } else if (type === "ZYK") {
@@ -1226,13 +1229,16 @@
         btn.className = "scale-btn";
         const wert = eigeneOptionen ? eigeneOptionen[i-1]
                    : (config.skalaBeschriftungen ? config.skalaBeschriftungen[i-1] : i);
+        // Nur-Anzeige-Beschriftung: Button zeigt Text, gespeichert wird weiterhin die Zahl
+        const anzeige = (!eigeneOptionen && config.anzeigeBeschriftungen)
+                   ? config.anzeigeBeschriftungen[i-1] : wert;
 
         if (config.bildSkala && !eigeneOptionen) {
           btn.classList.add("bild-skala-btn");
           const img = document.createElement("img");
           const bildName = config.bildSkala[i-1];
           img.src = BILD_DATEN[bildName] || bildName;
-          img.alt = wert;
+          img.alt = anzeige;
           btn.appendChild(img);
         } else if (config.groessenSkala && !eigeneOptionen) {
           // Aufsteigend große Kreise für jüngere Kinder
@@ -1246,13 +1252,18 @@
           kreis.style.width = groesse + "px";
           kreis.style.height = groesse + "px";
           btn.appendChild(kreis);
-          const zahl = document.createElement("div");
-          zahl.className = "groessen-zahl";
-          zahl.textContent = i;
-          btn.appendChild(zahl);
+          // Zahl nur zeigen, wenn die Stufen nicht ohnehin darunter benannt sind
+          if (!config.skalaUnten) {
+            const zahl = document.createElement("div");
+            zahl.className = "groessen-zahl";
+            zahl.textContent = i;
+            btn.appendChild(zahl);
+          }
         } else {
-          btn.textContent = wert;
-          if (config.skalaBeschriftungen && !eigeneOptionen) btn.classList.add("scale-btn-text");
+          btn.textContent = anzeige;
+          if ((config.skalaBeschriftungen || config.anzeigeBeschriftungen) && !eigeneOptionen) {
+            btn.classList.add("scale-btn-text");
+          }
         }
 
         btn.onclick = () => antwortSenden(q.id, wert, scale, btn, config.fragebogen);
@@ -1270,20 +1281,25 @@
 
       // Bei Bild-Skala sind die Labels schon als Überschrift oben — nicht doppeln
       if (!config.bildSkala && !eigeneOptionen) {
-        const labels = document.createElement("div");
-        labels.className = "scale-labels";
         if (Array.isArray(config.skalaUnten)) {
           // Jede Stufe einzeln beschriftet (z.B. nie / ein wenig / manchmal / oft)
-          labels.classList.add("verteilt");
+          const labels = document.createElement("div");
+          labels.className = "scale-labels verteilt";
           config.skalaUnten.forEach(t => {
             const s = document.createElement("span");
             s.textContent = t;
             labels.appendChild(s);
           });
-        } else {
-          labels.innerHTML = "<span>" + config.labelLinks + "</span><span>" + config.labelRechts + "</span>";
+          block.appendChild(labels);
+        } else if (config.labelLinks || config.labelRechts) {
+          // Nur Anker links/rechts
+          const labels = document.createElement("div");
+          labels.className = "scale-labels";
+          labels.innerHTML = "<span>" + (config.labelLinks || "") + "</span>" +
+                             "<span>" + (config.labelRechts || "") + "</span>";
+          block.appendChild(labels);
         }
-        block.appendChild(labels);
+        // Sonst: Buttons sind selbst beschriftet, keine zusaetzliche Zeile noetig
       }
 
       wrapper.appendChild(block);
