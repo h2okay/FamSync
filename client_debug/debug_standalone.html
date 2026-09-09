@@ -80,6 +80,15 @@
     .groessen-zahl { font-size: 13px; color: #666; }
     .scale-btn.groessen-skala-btn.selected .groessen-zahl { color: #fff; }
 
+    /* Vertikale Antwortoptionen (SE1: eigene Labels je Frage) */
+    .scale.vertikal { flex-direction: column; gap: 7px; }
+    .scale.vertikal .scale-btn {
+      min-height: 0; padding: 15px 18px; text-align: left;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, sans-serif;
+      font-size: 17px; line-height: 1.4;
+    }
+
     /* Bild-Skala (YTEAQ): Hände als Antwortbuttons */
     .bild-skala-header { display: flex; gap: 6px; margin-bottom: 2rem; }
     .bild-skala-header > div {
@@ -521,21 +530,21 @@
     } else {
       let demographieName, rest;
       if (rolle === "T") {
-        demographieName = "Demographie";
-        rest = ["Familienstruktur", "PSS", "ECR", "IRI", "LITPQ", "TEAQ"];
+        demographieName = "Demo";
+        rest = ["FamStr", "PSS", "ECR", "IRI", "LITPQ", "TEAQ", "SE1", "SE2", "SE3"];
       } else if (rolle === "P") {
-        demographieName = "Demographie";
-        rest = ["Familienstruktur", "PSS", "ECR", "IRI", "LITPQ", "TEAQ"];
+        demographieName = "Demo";
+        rest = ["FamStr", "PSS", "ECR", "IRI", "LITPQ", "TEAQ", "SE1", "SE2", "SE3"];
       } else {
-        demographieName = "DemographieKind";
+        demographieName = "DemoK";
         rest = ["Pub", "PSSK", "ECR-K", "EmQue", "LITPQ", "YTEAQ"];
         // Drogen-Fragebogen erst ab 13 Jahren
-        if (altersgruppe !== "u13") rest.push("Drogen");
+        if (altersgruppe !== "u13") rest.push("DG");
       }
       rest = shuffle(rest);
       liste = [demographieName, ...rest];
       // Zyklus richtet sich nach dem biologischen Geschlecht
-      if (bioGeschlecht === "w") liste.push("Zyklus");
+      if (bioGeschlecht === "w") liste.push("Zyk");
     }
 
     localStorage.setItem("sa_liste", JSON.stringify(liste));
@@ -946,6 +955,35 @@
         skalaBeschriftungen: ["Stimmt nicht", "Stimmt etwas", "Stimmt"],
         fragebogen: "EmQue"
       });
+    } else if (type === "SE1") {
+      zeigeFragen({
+        titel: "SE1",
+        anweisung: "Bitte wählen Sie jeweils die Antwort, die am besten auf Sie zutrifft.",
+        fragen: SE1_FRAGEN,
+        skala: 5,
+        fragebogen: "SE1"
+      });
+    } else if (type === "SE2") {
+      zeigeFragen({
+        titel: "SE2",
+        anweisung: "Wie sehr treffen die folgenden Aussagen auf Sie zu?",
+        fragen: SE2_FRAGEN,
+        labelLinks: "trifft überhaupt nicht zu",
+        labelRechts: "trifft genau zu",
+        skala: 4,
+        skalaBeschriftungen: ["trifft überhaupt nicht zu", "trifft eher nicht zu", "trifft eher zu", "trifft genau zu"],
+        fragebogen: "SE2"
+      });
+    } else if (type === "SE3") {
+      zeigeFragen({
+        titel: "SE3",
+        anweisung: "Wie sehr treffen die folgenden Aussagen auf Sie zu? 1 = trifft überhaupt nicht zu, 4 = unentschieden, 7 = trifft voll zu.",
+        fragen: SE3_FRAGEN,
+        labelLinks: "trifft überhaupt nicht zu",
+        labelRechts: "trifft voll zu",
+        skala: 7,
+        fragebogen: "SE3"
+      });
     } else if (type === "TEAQ") {
       zeigeFragen({
         titel: "TEAQ",
@@ -971,15 +1009,15 @@
       });
     } else if (type === "LITPQ") {
       zeigeLITPQ();
-    } else if (type === "DROGEN") {
+    } else if (type === "DG") {
       zeigeDrogen();
-    } else if (type === "DEMOGRAPHIEKIND") {
+    } else if (type === "DEMOK") {
       zeigeDemographieKind();
     } else if (type === "PUB") {
       zeigePubertat();
-    } else if (type === "FAMILIENSTRUKTUR") {
+    } else if (type === "FAMSTR") {
       zeigeFamilienstruktur();
-    } else if (type === "DEMOGRAPHIE") {
+    } else if (type === "DEMO") {
       zeigeDemographie();
     } else if (type === "ECR") {
       zeigeFragen({
@@ -1091,7 +1129,7 @@
         skala: 4,
         fragebogen: "PSSK"
       });
-    } else if (type === "ZYKLUS") {
+    } else if (type === "ZYK") {
       if (rolle === "K") {
         zeigeZyklusKind();
       } else {
@@ -1172,19 +1210,25 @@
       const scale = document.createElement("div");
       scale.className = "scale";
 
-      for (let i = 1; i <= config.skala; i++) {
+      // Frage-eigene Antwortoptionen (SE1) → untereinander statt nebeneinander
+      const eigeneOptionen = Array.isArray(q.optionen) ? q.optionen : null;
+      if (eigeneOptionen) scale.classList.add("vertikal");
+      const anzahl = eigeneOptionen ? eigeneOptionen.length : config.skala;
+
+      for (let i = 1; i <= anzahl; i++) {
         const btn = document.createElement("button");
         btn.className = "scale-btn";
-        const wert = config.skalaBeschriftungen ? config.skalaBeschriftungen[i-1] : i;
+        const wert = eigeneOptionen ? eigeneOptionen[i-1]
+                   : (config.skalaBeschriftungen ? config.skalaBeschriftungen[i-1] : i);
 
-        if (config.bildSkala) {
+        if (config.bildSkala && !eigeneOptionen) {
           btn.classList.add("bild-skala-btn");
           const img = document.createElement("img");
           const bildName = config.bildSkala[i-1];
           img.src = BILD_DATEN[bildName] || bildName;
           img.alt = wert;
           btn.appendChild(img);
-        } else if (config.groessenSkala) {
+        } else if (config.groessenSkala && !eigeneOptionen) {
           // Aufsteigend große Kreise für jüngere Kinder
           btn.classList.add("groessen-skala-btn");
           const minPx = 14, maxPx = 44;
@@ -1202,7 +1246,7 @@
           btn.appendChild(zahl);
         } else {
           btn.textContent = wert;
-          if (config.skalaBeschriftungen) btn.classList.add("scale-btn-text");
+          if (config.skalaBeschriftungen && !eigeneOptionen) btn.classList.add("scale-btn-text");
         }
 
         btn.onclick = () => antwortSenden(q.id, wert, scale, btn, config.fragebogen);
@@ -1219,7 +1263,7 @@
       block.appendChild(scale);
 
       // Bei Bild-Skala sind die Labels schon als Überschrift oben — nicht doppeln
-      if (!config.bildSkala) {
+      if (!config.bildSkala && !eigeneOptionen) {
         const labels = document.createElement("div");
         labels.className = "scale-labels";
         labels.innerHTML = "<span>" + config.labelLinks + "</span><span>" + config.labelRechts + "</span>";
@@ -1420,7 +1464,7 @@
     function sendeAntwort(id, wert) {
       speichereAntwort({
         triad_id: triadId, participant: participantId,
-        fragebogen: "Demographie", question: id, value: wert, time: Date.now()
+        fragebogen: "Demo", question: id, value: wert, time: Date.now()
       });
     }
 
@@ -1433,7 +1477,7 @@
         document.getElementById("status").style.display = "block";
         fragebogenFertig({
           triad_id: triadId, participant: participantId,
-          fragebogen: "Demographie", time: Date.now()
+          fragebogen: "Demo", time: Date.now()
         });
       }
     }
@@ -1467,6 +1511,58 @@
   ];
 
   // ── EMQUE-CA ───────────────────────────────────────────
+  // ── SOZIALE EINGEBUNDENHEIT (SE1–SE3) ─────────────────
+  // SE1: jede Frage hat eigene Antwortoptionen
+  const SKALA_SCHWIERIGKEIT = ["Keine Schwierigkeit", "Geringe Schwierigkeit", "Mittlere Schwierigkeit", "Große Schwierigkeit", "Extreme Schwierigkeit"];
+  const SKALA_ZUFRIEDEN = ["Sehr unzufrieden", "Unzufrieden", "Weder zufrieden noch unzufrieden", "Zufrieden", "Sehr zufrieden"];
+
+  const SE1_FRAGEN = [
+    { id: "se1_aktivitaeten", text: "Wie oft, würden Sie sagen, nehmen Sie im Vergleich zu anderen Menschen in Ihrem Alter an sozialen Aktivitäten teil?",
+      optionen: ["Viel weniger als die meisten", "Weniger als die meisten", "Wie die meisten", "Mehr als die meisten", "Viel mehr als die meisten"] },
+    { id: "se1_freundschaft", text: "Wie viele Schwierigkeiten hatten Sie in den letzten 30 Tagen, eine Freundschaft aufrechtzuhalten?",
+      optionen: SKALA_SCHWIERIGKEIT },
+    { id: "se1_einsam", text: "Fühlen Sie sich einsam in Ihrem Leben?",
+      optionen: ["Überhaupt nicht", "Ein wenig", "Mittelmäßig", "Ziemlich", "Äußerst"] },
+    { id: "se1_beziehungen", text: "Wie zufrieden sind Sie mit Ihren persönlichen Beziehungen?",
+      optionen: SKALA_ZUFRIEDEN },
+    { id: "se1_familie", text: "Sind Sie glücklich in der Beziehung zu Ihrer Familie?",
+      optionen: ["Sehr unglücklich", "Relativ unglücklich", "Weder glücklich noch unglücklich", "Relativ glücklich", "Sehr glücklich"] },
+    { id: "se1_nahestehende", text: "Wie viele Menschen stehen Ihnen so nahe, dass Sie auf sie zählen können, wenn Sie große persönliche Probleme haben?",
+      optionen: ["Keine", "1–2", "3–5", "5+"] },
+    { id: "se1_anteilnahme", text: "Wie viel Interesse und Anteilnahme zeigen die Menschen an dem, was Sie tun?",
+      optionen: ["Kein", "Wenig", "Unsicher", "Etwas", "Viel"] },
+    { id: "se1_nachbarn", text: "Wie leicht ist es, praktische Hilfe von Nachbarn zu bekommen, wenn Sie sie brauchen?",
+      optionen: ["Sehr schwierig", "Schwierig", "Möglich", "Leicht", "Sehr leicht"] },
+    { id: "se1_gefuehle_erkennen", text: "Wie zufrieden sind Sie mit Ihrer Fähigkeit, Gefühle im Gesicht, der Stimme oder den Bewegungen anderer Menschen zu erkennen?",
+      optionen: SKALA_ZUFRIEDEN },
+    { id: "se1_personen_erkennen", text: "Wie viele Schwierigkeiten haben Sie, Menschen zu erkennen, wenn Sie deren Stimme nicht hören?",
+      optionen: SKALA_SCHWIERIGKEIT }
+  ];
+
+  const SE2_FRAGEN = [
+    { id: "se2_1", text: "Ich habe oft Schwierigkeiten, die Gedanken und Gefühle anderer zu verstehen." },
+    { id: "se2_2", text: "Ich kann es oft schwer aushalten, wenn andere eine andere Meinung haben." },
+    { id: "se2_3", text: "Ich verstehe oft nicht ganz, warum mein Verhalten einen bestimmten Einfluss auf andere hat." },
+    { id: "se2_4", text: "Meine Beziehungen und Freundschaften halten nie lange." },
+    { id: "se2_5", text: "Ich fühle mich oft sehr verletzlich, wenn Beziehungen persönlicher werden." },
+    { id: "se2_6", text: "Es gelingt mir häufig nicht, mit anderen auf eine Weise zusammen zu arbeiten, die für beide Seiten zufriedenstellend ist." }
+  ];
+
+  const SE3_FRAGEN = [
+    { id: "se3_1",  text: "Wenn ich mit anderen Menschen zusammen bin, fühle ich mich einbezogen." },
+    { id: "se3_2",  text: "Ich habe enge Bindungen an meine Familie und Freunde." },
+    { id: "se3_3",  text: "Ich fühle mich wie ein Außenseiter." },
+    { id: "se3_4",  text: "Ich fühle mich so, als wäre ich anderen Menschen egal." },
+    { id: "se3_5",  text: "Ich fühle mich von anderen akzeptiert." },
+    { id: "se3_6",  text: "Weil ich nicht dazugehöre, fühle ich mich an Feiertagen distanziert." },
+    { id: "se3_7",  text: "Ich fühle mich vom Rest der Welt isoliert." },
+    { id: "se3_8",  text: "Ich habe ein Zugehörigkeitsgefühl." },
+    { id: "se3_9",  text: "Wenn ich mit anderen Menschen zusammen bin, fühle ich mich wie ein Fremder." },
+    { id: "se3_10", text: "Ich fühle mich anderen zugehörig." },
+    { id: "se3_11", text: "Ich fühle mich mit anderen verbunden." },
+    { id: "se3_12", text: "Freunde und Familienmitglieder beziehen mich nicht in ihre Pläne mit ein." }
+  ];
+
   const TEAQ_FRAGEN = [
     { id: "teaq_1",  text: "Ich mag es nicht, wenn andere Menschen viel Körperkontakt zu mir suchen." },
     { id: "teaq_2",  text: "Ich genieße es, wenn andere Menschen meine Haut berühren." },
@@ -1560,7 +1656,7 @@
       if (s.bedingt && !s.bedingt(antworten)) {
         speichereAntwort({
           triad_id: triadId, participant: participantId,
-          fragebogen: "Drogen", question: s.id, value: "—", time: Date.now()
+          fragebogen: "DG", question: s.id, value: "—", time: Date.now()
         });
         naechster(index);
         return;
@@ -1570,7 +1666,7 @@
 
       const titel = document.createElement("p");
       titel.className = "q-title";
-      titel.textContent = "Drogen";
+      titel.textContent = "DG";
       wrapper.appendChild(titel);
 
       const frage = document.createElement("p");
@@ -1587,7 +1683,7 @@
           antworten[s.id] = opt;
           speichereAntwort({
             triad_id: triadId, participant: participantId,
-            fragebogen: "Drogen", question: s.id, value: opt, time: Date.now()
+            fragebogen: "DG", question: s.id, value: opt, time: Date.now()
           });
           naechster(index);
         };
@@ -1603,7 +1699,7 @@
         document.getElementById("status").style.display = "block";
         fragebogenFertig({
           triad_id: triadId, participant: participantId,
-          fragebogen: "Drogen", time: Date.now()
+          fragebogen: "DG", time: Date.now()
         });
       }
     }
@@ -1780,7 +1876,7 @@
         if (!input.value.trim()) { alert("Bitte eine Antwort eingeben."); input.focus(); return; }
         speichereAntwort({
           triad_id: triadId, participant: participantId,
-          fragebogen: "DemographieKind", question: s.id,
+          fragebogen: "DemoK", question: s.id,
           value: input.value.trim(), time: Date.now()
         });
         if (index < SCHRITTE.length - 1) {
@@ -1790,7 +1886,7 @@
           document.getElementById("status").style.display = "block";
           fragebogenFertig({
             triad_id: triadId, participant: participantId,
-            fragebogen: "DemographieKind", time: Date.now()
+            fragebogen: "DemoK", time: Date.now()
           });
         }
       };
@@ -2121,7 +2217,7 @@
         // Schritt überspringen, leeren Wert loggen
         speichereAntwort({
           triad_id: triadId, participant: participantId,
-          fragebogen: "Familienstruktur", question: s.id, value: "—", time: Date.now()
+          fragebogen: "FamStr", question: s.id, value: "—", time: Date.now()
         });
         weiter(index);
         return;
@@ -2135,7 +2231,7 @@
 
       const titel = document.createElement("p");
       titel.className = "q-title";
-      titel.textContent = "Familienstruktur" + (s.block ? " — " + s.block : "");
+      titel.textContent = "FamStr" + (s.block ? " — " + s.block : "");
       wrapper.appendChild(titel);
 
       const frage = document.createElement("p");
@@ -2215,7 +2311,7 @@
     function sendeAntwort(id, wert) {
       speichereAntwort({
         triad_id: triadId, participant: participantId,
-        fragebogen: "Familienstruktur", question: id, value: wert, time: Date.now()
+        fragebogen: "FamStr", question: id, value: wert, time: Date.now()
       });
     }
 
@@ -2227,7 +2323,7 @@
         document.getElementById("status").style.display = "block";
         fragebogenFertig({
           triad_id: triadId, participant: participantId,
-          fragebogen: "Familienstruktur", time: Date.now()
+          fragebogen: "FamStr", time: Date.now()
         });
       }
     }
@@ -2244,7 +2340,7 @@
 
     const titel = document.createElement("p");
     titel.className = "q-title";
-    titel.textContent = "Zyklus";
+    titel.textContent = "Zyk";
     wrapper.appendChild(titel);
 
     const anweisung = document.createElement("p");
@@ -2275,7 +2371,7 @@
           // Schritt 2: Zyklusphase
           speichereAntwort({
             triad_id: triadId, participant: participantId,
-            fragebogen: "Zyklus", question: "zyklus_natuerlich", value: "Ja", time: Date.now()
+            fragebogen: "Zyk", question: "zyklus_natuerlich", value: "Ja", time: Date.now()
           });
           wrapper.remove();
           zeigeZyklusPhase();
@@ -2283,13 +2379,13 @@
           // Fertig
           speichereAntwort({
             triad_id: triadId, participant: participantId,
-            fragebogen: "Zyklus", question: "zyklus_natuerlich", value: opt.text, time: Date.now()
+            fragebogen: "Zyk", question: "zyklus_natuerlich", value: opt.text, time: Date.now()
           });
           setTimeout(() => {
             wrapper.remove();
             document.getElementById("status").style.display = "block";
             fragebogenFertig({
-              triad_id: triadId, participant: participantId, fragebogen: "Zyklus", time: Date.now()
+              triad_id: triadId, participant: participantId, fragebogen: "Zyk", time: Date.now()
             });
           }, 400);
         }
@@ -2308,7 +2404,7 @@
 
     const titel = document.createElement("p");
     titel.className = "q-title";
-    titel.textContent = "Zyklus";
+    titel.textContent = "Zyk";
     wrapper.appendChild(titel);
 
     const anweisung = document.createElement("p");
@@ -2339,20 +2435,20 @@
         if (opt.id === "zyklus_ja") {
           speichereAntwort({
             triad_id: triadId, participant: participantId,
-            fragebogen: "Zyklus", question: "zyklus_natuerlich", value: "Ja", time: Date.now()
+            fragebogen: "Zyk", question: "zyklus_natuerlich", value: "Ja", time: Date.now()
           });
           wrapper.remove();
           zeigeZyklusPhaseDu(); // du-Version für Kind
         } else {
           speichereAntwort({
             triad_id: triadId, participant: participantId,
-            fragebogen: "Zyklus", question: "zyklus_natuerlich", value: opt.text, time: Date.now()
+            fragebogen: "Zyk", question: "zyklus_natuerlich", value: opt.text, time: Date.now()
           });
           setTimeout(() => {
             wrapper.remove();
             document.getElementById("status").style.display = "block";
             fragebogenFertig({
-              triad_id: triadId, participant: participantId, fragebogen: "Zyklus", time: Date.now()
+              triad_id: triadId, participant: participantId, fragebogen: "Zyk", time: Date.now()
             });
           }, 400);
         }
@@ -2371,7 +2467,7 @@
 
     const titel = document.createElement("p");
     titel.className = "q-title";
-    titel.textContent = "Zyklus";
+    titel.textContent = "Zyk";
     wrapper.appendChild(titel);
 
     const frage = document.createElement("p");
@@ -2397,13 +2493,13 @@
         btn.style.borderColor = "#111";
         speichereAntwort({
           triad_id: triadId, participant: participantId,
-          fragebogen: "Zyklus", question: "zyklus_phase", value: opt.text, time: Date.now()
+          fragebogen: "Zyk", question: "zyklus_phase", value: opt.text, time: Date.now()
         });
         setTimeout(() => {
           wrapper.remove();
           document.getElementById("status").style.display = "block";
           fragebogenFertig({
-            triad_id: triadId, participant: participantId, fragebogen: "Zyklus", time: Date.now()
+            triad_id: triadId, participant: participantId, fragebogen: "Zyk", time: Date.now()
           });
         }, 600);
       };
@@ -2421,7 +2517,7 @@
 
     const titel = document.createElement("p");
     titel.className = "q-title";
-    titel.textContent = "Zyklus";
+    titel.textContent = "Zyk";
     wrapper.appendChild(titel);
 
     const frage = document.createElement("p");
@@ -2447,13 +2543,13 @@
         btn.style.borderColor = "#111";
         speichereAntwort({
           triad_id: triadId, participant: participantId,
-          fragebogen: "Zyklus", question: "zyklus_phase", value: opt.text, time: Date.now()
+          fragebogen: "Zyk", question: "zyklus_phase", value: opt.text, time: Date.now()
         });
         setTimeout(() => {
           wrapper.remove();
           document.getElementById("status").style.display = "block";
           fragebogenFertig({
-            triad_id: triadId, participant: participantId, fragebogen: "Zyklus", time: Date.now()
+            triad_id: triadId, participant: participantId, fragebogen: "Zyk", time: Date.now()
           });
         }, 600);
       };
