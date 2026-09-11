@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Client</title>
+  <title>DEBUG — Client</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -17,7 +17,7 @@
       display: flex;
       align-items: flex-start;
       justify-content: center;
-      padding: 2.5rem 1.5rem 5rem;
+      padding: 4.5rem 1.5rem 5rem;
     }
 
     #status {
@@ -59,7 +59,7 @@
 
     /* Abbrechen-Button während der Fragebogen-Bearbeitung */
     #abbrechen-btn {
-      position: fixed; top: 12px; right: 12px; z-index: 1000; display: none;
+      position: fixed; top: 46px; right: 12px; z-index: 1000; display: none;
       background: #fff; border: 2px solid #888; color: #111;
       font-family: 'Courier New', monospace; font-size: 13px;
       letter-spacing: 0.1em; padding: 10px 18px; cursor: pointer;
@@ -245,6 +245,8 @@
 </head>
 <body>
 
+<div style="position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;font-family:'Courier New',monospace;font-size:13px;letter-spacing:0.15em;text-align:center;padding:8px;z-index:9999;font-weight:bold;">DEBUG-VERSION — ALLE FRAGEBÖGEN FREIGESCHALTET</div>
+
 <button id="abbrechen-btn" onclick="fragebogenAbbrechen()">&times; Abbrechen</button>
 
 <!-- SETUP SCREEN -->
@@ -344,7 +346,7 @@
 
 <script>
   // Debug-Schalter: wenn true, sind ALLE Fragebögen sofort freigeschaltet
-  const DEBUG_ALLE_FREI = false;
+  const DEBUG_ALLE_FREI = true;
 
   // Aktuell geöffneter Fragebogen (für Abbrechen-Funktion)
   let aktuellerFragebogen = "";
@@ -609,6 +611,7 @@
 
   // ── HAUPTMENÜ ──────────────────────────────────────────
   function zeigeHauptmenu() {
+    window.scrollTo(0, 0);
     document.getElementById("setup-screen").style.display = "none";
     document.getElementById("status").style.display = "none";
     document.getElementById("abbrechen-btn").style.display = "none";
@@ -703,6 +706,13 @@
   }
 
   function testungZuruecksetzen() {
+    // Code-Abfrage, damit die Testung nicht versehentlich beendet wird
+    const eingabe = prompt("Zum Beenden und Zurücksetzen bitte den Code eingeben:");
+    if (eingabe === null) return;                 // abgebrochen
+    if (eingabe.trim() !== "1312") {
+      alert("Falscher Code. Die Testung wurde nicht zurückgesetzt.");
+      return;
+    }
     if (!confirm("Testung wirklich beenden und zurücksetzen? Alle lokal gespeicherten Antworten dieser Person werden gelöscht (nicht rückgängig zu machen).")) return;
     const keys = ["sa_triadId", "sa_rolle", "sa_geschlecht", "sa_gruppe", "sa_participantId",
                   "sa_sessionGeschlecht", "sa_liste", "sa_stai_liste", "sa_erledigt", "sa_antworten",
@@ -819,12 +829,12 @@
     { id: "ae_2",  text: "Ich mache mir oft Sorgen, dass mein Partner/meine Partnerin nicht bei mir bleiben will." },
     { id: "ae_3",  text: "Ich fühle mich wohl damit, meine privaten Gedanken und Gefühle mit meinem Partner/meiner Partnerin zu teilen." },
     { id: "ae_4",  text: "Es fällt mir leicht, mich auf meinen Partner/meine Partnerin zu verlassen." },
-    { id: "ae_5",  text: "Ich befürchte, dass ich meinem Partner/meiner Partnerin weniger bedeute, als er/sie mir." },
+    { id: "ae_5",  text: "Ich befürchte, dass ich meinem Partner/meiner Partnerin weniger bedeute als er/sie mir." },
     { id: "ae_6",  text: "Ich ziehe es vor, meinem Partner/meiner Partnerin nicht nahe zu sein." },
     { id: "ae_7",  text: "Mir wird unwohl, wenn ein Partner/eine Partnerin mir sehr nahe sein will." },
     { id: "ae_8",  text: "Ich habe den Eindruck, dass mein Partner/meine Partnerin nicht so viel Nähe möchte wie ich." },
     { id: "ae_9",  text: "Ich bespreche vieles mit meinem Partner/meiner Partnerin." },
-    { id: "ae_10", text: "Ich habe Angst, dass sobald ein Partner/eine Partnerin mich näher kennen lernt, er/sie mich nicht so mag, wie ich wirklich bin." },
+    { id: "ae_10", text: "Ich habe Angst, dass, sobald ein Partner/eine Partnerin mich näher kennenlernt, er/sie mich nicht so mag, wie ich wirklich bin." },
     { id: "ae_11", text: "Es macht mich wütend, dass ich von meinem Partner/meiner Partnerin nicht die Zuneigung und Unterstützung bekomme, die ich brauche." },
     { id: "ae_12", text: "Es fällt mir leicht, meinem Partner/meiner Partnerin gegenüber liebevoll zu sein." }
   ];
@@ -902,10 +912,19 @@
 
     if (type.startsWith("STAI")) {
       const mzp = type.replace("STAI", "");
+      // Erwachsene werden gesiezt, Kinder geduzt
+      const siezen = (rolle !== "K");
+      const staiFragen = STAI_FRAGEN.map(f =>
+        (f.id === "stai_stress" && siezen)
+          ? { ...f, text: "Wie gestresst fühlen Sie sich in diesem Moment?" }
+          : f
+      );
       zeigeFragen({
         titel: "STAI — MZP " + mzp,
-        anweisung: "Wie sehr treffen die folgenden Gefühlsbeschreibungen im Moment auf dich zu?",
-        fragen: STAI_FRAGEN,
+        anweisung: siezen
+          ? "Wie sehr treffen die folgenden Gefühlsbeschreibungen im Moment auf Sie zu?"
+          : "Wie sehr treffen die folgenden Gefühlsbeschreibungen im Moment auf dich zu?",
+        fragen: staiFragen,
         labelLinks: "Überhaupt nicht",
         labelRechts: "Ganz und gar",
         skala: 7,
@@ -929,7 +948,7 @@
     } else if (type === "SAM") {
       zeigeFragen({
         titel: "SAM",
-        anweisung: "Die folgenden Fragen beschäftigen sich mit deiner Wahrnehmung der zuvor erlebten Situation.",
+        anweisung: "Die folgenden Fragen beschäftigen sich mit Ihrer Wahrnehmung der zuvor erlebten Situation.",
         fragen: SAM_FRAGEN,
         labelLinks: "Trifft gar nicht zu",
         labelRechts: "Trifft vollkommen zu",
@@ -1047,58 +1066,44 @@
       const gT = sessionGeschlecht["T"] || "w";
       const gP = sessionGeschlecht["P"] || "w";
 
-      // Überschriften für die zwei Blöcke
+      // Bezeichnung je Elternteil einzeln — Zusatz nur, wenn beide gleich heissen
+      const BEZ = { w: "Mutter", m: "Vater", d: "Elternteil" };
+      const ARTIKEL = { w: "die", m: "der", d: "der" }; // der Elternteil (maskulin)
+      const bezT = BEZ[gT] || "Elternteil";
+      const bezP = BEZ[gP] || "Elternteil";
       let headerE, headerP;
-      if (gT === "w" && gP === "w") {
-        headerE = "Mutter (die vorhin kurz weg war)";
-        headerP = "Mutter (die die ganze Zeit bei dir war)";
-      } else if (gT === "m" && gP === "m") {
-        headerE = "Vater (der vorhin kurz weg war)";
-        headerP = "Vater (der die ganze Zeit bei dir war)";
-      } else if (gT === "d" || gP === "d") {
-        headerE = "Elternteil (das vorhin kurz weg war)";
-        headerP = "Elternteil (das die ganze Zeit bei dir war)";
-      } else if (gT === "w" && gP === "m") {
-        headerE = "Mutter";
-        headerP = "Vater";
+      if (bezT === bezP) {
+        headerE = bezT + " (" + (ARTIKEL[gT] || "der") + " vorhin kurz weg war)";
+        headerP = bezP + " (" + (ARTIKEL[gP] || "der") + " die ganze Zeit bei dir war)";
       } else {
-        headerE = "Vater";
-        headerP = "Mutter";
+        headerE = bezT;
+        headerP = bezP;
       }
 
-      // Fragen für Block E — korrekt dekliniert je nach Geschlecht
+      // Fragen aus der Vater-Basis ableiten, korrekt dekliniert
       function fragenFuerPerson(basisFragen, g, prefix) {
         return basisFragen.map(f => {
           let t = f.text;
           if (g === "w") {
-            // Mutter-Deklination: Fragen sind bereits mit Mutter-Formen
-            // Vater-Basis → Mutter umschreiben
             t = t
               .replace(/mein Vater/g, "meine Mutter")
               .replace(/meinen Vater/g, "meine Mutter")
               .replace(/meinem Vater/g, "meiner Mutter")
-              .replace(/mein Elternteil/g, "meine Mutter")
-              .replace(/meinem Elternteil/g, "meiner Mutter")
-              .replace(/er/g, "sie")
-              .replace(/ihn/g, "sie")
-              .replace(/seine/g, "ihre");
-          } else if (g === "m") {
-            // Vater-Deklination: Fragen sind in Vater-Form — direkt verwenden
+              .replace(/\ber\b/g, "sie")
+              .replace(/\bihn\b/g, "sie")
+              .replace(/\bseine\b/g, "ihre");
+          } else if (g === "d") {
+            // "der Elternteil" ist maskulin — Pronomen werden vermieden und
+            // stattdessen die Bezeichnung wiederholt, damit es neutral bleibt.
             t = t
-              .replace(/meine Mutter/g, "mein Vater")
-              .replace(/meiner Mutter/g, "meinem Vater")
-              .replace(/mein Elternteil/g, "mein Vater")
-              .replace(/meinem Elternteil/g, "meinem Vater")
-              .replace(/sie/g, "er")
-              .replace(/sie/g, "ihn");
-          } else {
-            // divers → Elternteil
-            t = t
-              .replace(/mein Vater|meine Mutter/g, "mein Elternteil")
-              .replace(/meinem Vater|meiner Mutter/g, "meinem Elternteil")
-              .replace(/er|sie/g, "es")
-              .replace(/ihn|sie/g, "es");
+              .replace(/mein Vater/g, "mein Elternteil")
+              .replace(/meinen Vater/g, "mein Elternteil")
+              .replace(/meinem Vater/g, "meinem Elternteil")
+              .replace(/\bihn\b/g, "meinen Elternteil")
+              .replace(/dass er /g, "dass mein Elternteil ")
+              .replace(/\bseine\b/g, "die");
           }
+          // g === "m": Basis ist bereits Vater-Form, keine Aenderung noetig
           return { ...f, id: f.id.replace(/^ak_[vm]_/, prefix), text: t };
         });
       }
@@ -1150,6 +1155,8 @@
   // ── FRAGEBOGEN ANZEIGEN ────────────────────────────────
 
   function clearScreen() {
+    // Immer am Seitenanfang starten, nicht an der vorherigen Scrollposition
+    window.scrollTo(0, 0);
     document.getElementById("status").style.display = "none";
     document.getElementById("menu-screen").style.display = "none";
     document.getElementById("abbrechen-btn").style.display = "block";
@@ -1388,7 +1395,7 @@
         optionen: [
           "Unter 1.000 €", "1.000–1.999 €", "2.000–2.999 €",
           "3.000–3.999 €", "4.000–4.999 €", "5.000–5.999 €",
-          "mehr als 6.000 €", "Möchte ich nicht angeben"
+          "6.000 € oder mehr", "Möchte ich nicht angeben"
         ]
       },
       {
@@ -1416,6 +1423,7 @@
     function zeigeFrage(index) {
       const wrapper = document.getElementById("active-questionnaire");
       if (wrapper) wrapper.innerHTML = "";
+      window.scrollTo(0, 0);
 
       const q = DEMO_FRAGEN[index];
 
@@ -1533,7 +1541,7 @@
     { id: "iri_7",  text: "Nachdem ich einen Film gesehen habe, fühle ich mich so, als ob ich eine der Personen aus diesem Film sei." },
     { id: "iri_8",  text: "In einer gespannten emotionalen Situation zu sein, macht mir Angst." },
     { id: "iri_9",  text: "Mich berühren Dinge sehr, auch wenn ich sie nur beobachte." },
-    { id: "iri_10", text: "Ich glaube, jedes Problem hat zwei Seiten und versuche deshalb beide zu berücksichtigen." },
+    { id: "iri_10", text: "Ich glaube, jedes Problem hat zwei Seiten und versuche deshalb, beide zu berücksichtigen." },
     { id: "iri_11", text: "Ich würde mich selbst als eine ziemlich weichherzige Person bezeichnen." },
     { id: "iri_12", text: "Wenn ich einen guten Film sehe, kann ich mich sehr leicht in die Hauptperson hineinversetzen." },
     { id: "iri_13", text: "In heiklen Situationen neige ich dazu, die Kontrolle über mich zu verlieren." },
@@ -1634,7 +1642,7 @@
   ];
 
   const EMQUE_FRAGEN = [
-    { id: "emque_1",  text: "Wenn meine Mutter fröhlich ist, bin ich auch fröhlich." },
+    { id: "emque_1",  text: "Wenn mein Elternteil fröhlich ist, bin ich auch fröhlich." },
     { id: "emque_2",  text: "Ich fühle mich oft traurig, wenn ich einen traurigen Film sehe." },
     { id: "emque_3",  text: "Wenn es einem Freund schlecht geht, geht es auch mir schlecht." },
     { id: "emque_4",  text: "Wenn ein Freund weint, muss ich selbst auch weinen." },
@@ -1656,7 +1664,7 @@
 
     const SUBSTANZEN = [
       { id: "alkohol",  name: "Alkohol" },
-      { id: "zigaretten", name: "Zigaretten" },
+      { id: "zigaretten", name: "Zigaretten/Vapes" },
       { id: "cannabis", name: "Cannabis/Gras" }
     ];
 
@@ -1695,6 +1703,8 @@
       }
 
       wrapper.innerHTML = "";
+    window.scrollTo(0, 0);
+      window.scrollTo(0, 0);
 
       const titel = document.createElement("p");
       titel.className = "q-title";
@@ -1758,7 +1768,7 @@
     const anweisung = document.createElement("p");
     anweisung.className = "q-instruction";
     anweisung.textContent = istKind
-      ? "Wie oft hast du folgende Berührungsarten in der letzten Woche erlebt? Bitte gebe die Häufigkeit als Zahl an."
+      ? "Wie oft hast du folgende Berührungsarten in der letzten Woche erlebt? Bitte gib die Häufigkeit als Zahl an."
       : "Wie oft haben Sie folgende Berührungsarten in der letzten Woche erlebt? Bitte geben Sie die Häufigkeit als Zahl an.";
     wrapper.appendChild(anweisung);
 
@@ -1766,7 +1776,7 @@
 
     const FELDER_ELTERN = [
       { id: "partner", label: "gegenüber Ihrer Partnerperson:" },
-      { id: "kind",    label: "gegenüber Ihrem Kind:" }
+      { id: "kind",    label: "gegenüber Ihrem Studienkind:" }
     ];
 
     const FELDER_KIND = [
@@ -1882,6 +1892,8 @@
 
     function zeigeSchritt(index) {
       wrapper.innerHTML = "";
+    window.scrollTo(0, 0);
+      window.scrollTo(0, 0);
       const s = SCHRITTE[index];
 
       const titel = document.createElement("p");
@@ -2072,6 +2084,7 @@
     }
 
     wrapper.innerHTML = "";
+    window.scrollTo(0, 0);
 
     const titelEl = document.createElement("p");
     titelEl.className = "q-title";
@@ -2256,6 +2269,8 @@
       }
 
       wrapper.innerHTML = "";
+    window.scrollTo(0, 0);
+      window.scrollTo(0, 0);
 
       // Fortschritt
       const sichtbar = SCHRITTE.filter((s, i) => i <= index && (!s.bedingt || s.bedingt(antworten))).length;
@@ -2386,10 +2401,10 @@
     wrapper.appendChild(frage);
 
     const optionen = [
-      { id: "zyklus_nein_menopause", text: "Nein, ich befinde mich in der Menopause" },
-      { id: "zyklus_nein_pille",     text: "Nein, ich verhüte mit der Antibabypille" },
-      { id: "zyklus_nein_sonstige",  text: "Nein, keiner der oben genannten Gründe trifft auf mich zu." },
-      { id: "zyklus_ja",             text: "Ja" }
+      { id: "zyklus_nein_menopause",      text: "Nein, ich befinde mich in der Menopause." },
+      { id: "zyklus_nein_pille",          text: "Nein, ich verhüte mit der Antibabypille." },
+      { id: "zyklus_ja_hormonell",        text: "Ja, aber ich verhüte anderweitig hormonell (z. B. Hormonspirale, Hormonimplantat, Vaginalring)." },
+      { id: "zyklus_ja_nicht_hormonell",  text: "Ja, und ich verhüte nicht hormonell." }
     ];
 
     optionen.forEach(opt => {
@@ -2399,11 +2414,11 @@
       btn.onmouseover = () => { btn.style.background = "#eee"; btn.style.borderColor = "#888"; };
       btn.onmouseout = () => { btn.style.background = "transparent"; btn.style.borderColor = "#bbb"; };
       btn.onclick = () => {
-        if (opt.id === "zyklus_ja") {
+        if (opt.id.startsWith("zyklus_ja")) {
           // Schritt 2: Zyklusphase
           speichereAntwort({
             triad_id: triadId, participant: participantId,
-            fragebogen: "Zyk", question: "zyklus_natuerlich", value: "Ja", time: Date.now()
+            fragebogen: "Zyk", question: "zyklus_natuerlich", value: opt.text, time: Date.now()
           });
           wrapper.remove();
           zeigeZyklusPhase();
@@ -2444,18 +2459,29 @@
     anweisung.textContent = "Kortisolmessungen zeigen starke Zusammenhänge mit dem weiblichen Zyklus.";
     wrapper.appendChild(anweisung);
 
+    const jung = (altersgruppe === "u13");
+
     const frage = document.createElement("p");
     frage.className = "question-text";
-    frage.textContent = "Hast du einen natürlichen Zyklus?";
+    frage.textContent = jung
+      ? "Hast du schon deine Monatsblutung (Periode)?"
+      : "Hast du einen natürlichen Zyklus?";
     wrapper.appendChild(frage);
 
-    const optionen = [
-      { id: "zyklus_nein_keine_blutung", text: "Nein, ich habe noch keine Monatsblutung" },
-      { id: "zyklus_nein_pille",         text: "Nein, ich nehme die Antibabypille" },
-      { id: "zyklus_nein_sonstige",      text: "Nein, keiner der oben genannten Gründe trifft auf mich zu." },
-      { id: "zyklus_unsicher",           text: "Ich weiß es nicht oder bin mir unsicher." },
-      { id: "zyklus_ja",                 text: "Ja" }
-    ];
+    // Unter 13 bewusst einfach gehalten, ab 13 wie bei den Eltern (plus "weiß ich nicht")
+    const optionen = jung
+      ? [
+          { id: "zyklus_nein_keine_blutung", text: "Nein, ich habe noch keine Monatsblutung." },
+          { id: "zyklus_ja",                 text: "Ja, ich habe schon meine Monatsblutung." },
+          { id: "zyklus_unsicher",           text: "Ich weiß es nicht oder bin mir unsicher." }
+        ]
+      : [
+          { id: "zyklus_nein_keine_blutung",  text: "Nein, ich habe noch keine Monatsblutung." },
+          { id: "zyklus_nein_pille",          text: "Nein, ich nehme die Antibabypille." },
+          { id: "zyklus_ja_hormonell",        text: "Ja, aber ich verhüte anderweitig hormonell (z. B. Hormonspirale, Hormonimplantat, Vaginalring)." },
+          { id: "zyklus_ja_nicht_hormonell",  text: "Ja, und ich verhüte nicht hormonell." },
+          { id: "zyklus_unsicher",            text: "Ich weiß es nicht oder bin mir unsicher." }
+        ];
 
     optionen.forEach(opt => {
       const btn = document.createElement("button");
@@ -2464,10 +2490,10 @@
       btn.onmouseover = () => { btn.style.background = "#eee"; btn.style.borderColor = "#888"; };
       btn.onmouseout = () => { btn.style.background = "transparent"; btn.style.borderColor = "#bbb"; };
       btn.onclick = () => {
-        if (opt.id === "zyklus_ja") {
+        if (opt.id.startsWith("zyklus_ja")) {
           speichereAntwort({
             triad_id: triadId, participant: participantId,
-            fragebogen: "Zyk", question: "zyklus_natuerlich", value: "Ja", time: Date.now()
+            fragebogen: "Zyk", question: "zyklus_natuerlich", value: opt.text, time: Date.now()
           });
           wrapper.remove();
           zeigeZyklusPhaseDu(); // du-Version für Kind
@@ -2509,7 +2535,7 @@
 
     const phasen = [
       { id: "zyklus_phase_1", text: "Erste Woche, Periode" },
-      { id: "zyklus_phase_2", text: "Zweite Woche, follikulare Phase" },
+      { id: "zyklus_phase_2", text: "Zweite Woche, follikuläre Phase" },
       { id: "zyklus_phase_3", text: "Dritte und vierte Woche, luteale Phase" }
     ];
 
@@ -2559,7 +2585,7 @@
 
     const phasen = [
       { id: "zyklus_phase_1", text: "Erste Woche, Periode" },
-      { id: "zyklus_phase_2", text: "Zweite Woche, follikulare Phase" },
+      { id: "zyklus_phase_2", text: "Zweite Woche, follikuläre Phase" },
       { id: "zyklus_phase_3", text: "Dritte und vierte Woche, luteale Phase" }
     ];
 
