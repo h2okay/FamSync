@@ -97,6 +97,10 @@
     }
     .q-btn:hover { background: #1a1a1a; border-color: #555; color: #fff; }
     .q-btn.sent { border-color: #c8ff00; color: #c8ff00; }
+    /* Sync-Marker fuer den EKG-Abgleich optisch absetzen */
+    .q-btn.klopfen { border-style: dashed; border-color: #4b7ae8; color: #8fb3f0; }
+    .q-btn.klopfen:hover { border-color: #6f9bff; color: #cfe0ff; }
+    .q-btn.klopfen.sent { border-style: solid; border-color: #c8ff00; color: #c8ff00; }
 
     #log-section { margin-top: 2.5rem; }
     #log {
@@ -186,6 +190,7 @@
   <div class="event-buttons">
     <button class="q-btn" onclick="logEvent('Start Interaktion', this)">Start Interaktion</button>
     <button class="q-btn" onclick="logEvent('Ende Interaktion', this)">Ende Interaktion</button>
+    <button class="q-btn klopfen" onclick="logEvent('EKG-Klopfen', this)">EKG-Klopfen</button>
     <button class="q-btn" onclick="logEvent('Messung 4', this)">Messung 4</button>
     <button class="q-btn" onclick="logEvent('Start Ruhephase', this)">Start Ruhephase</button>
     <button class="q-btn" onclick="logEvent('Messung 5', this)">Messung 5</button>
