@@ -54,36 +54,40 @@
     }
     .vl-btn:hover { border-color: #555; color: #bbb; }
     .vl-btn.aktiv { border-color: #b98cff; color: #b98cff; background: #150d22; }
-    /* Timer als Leiste am oberen Rand — schiebt den Inhalt nach unten,
-       überdeckt daher niemals Buttons (auch nicht im Hochformat). */
+    /* Timer-Leiste oben — mehrere Timer untereinander, schiebt den Inhalt nach
+       unten (Padding wird per JS an die Hoehe angepasst), ueberdeckt also nichts. */
     #timer-box {
       position: fixed; top: 0; left: 0; right: 0; z-index: 5000; display: none;
-      flex-direction: row; align-items: center; justify-content: center; gap: clamp(14px, 3vw, 40px);
-      background: #000; border-bottom: 4px solid #4bb3e8;
-      padding: 10px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+      flex-direction: column; background: #000;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.8);
     }
-    body.timer-aktiv { padding-top: clamp(96px, 13vw, 130px); }
-
-    #timer-label {
+    .timer-zeile {
+      --farbe: #4bb3e8;
+      display: flex; align-items: center; justify-content: center;
+      gap: clamp(14px, 3vw, 40px); padding: 8px 16px;
+      border-bottom: 4px solid var(--farbe);
+    }
+    .timer-zeile.ruhe { --farbe: #5ccf8a; }
+    .timer-label {
       font-size: clamp(12px, 1.8vw, 17px); letter-spacing: 0.2em;
-      color: #aaa; text-transform: uppercase; white-space: nowrap;
+      color: #aaa; text-transform: uppercase; white-space: nowrap; min-width: 9em; text-align: right;
     }
-    #timer-display {
+    .timer-display {
       font-family: 'Courier New', monospace; font-weight: bold;
-      font-size: clamp(46px, 8vw, 84px);
-      color: #4bb3e8; line-height: 1.05; letter-spacing: 0.02em;
+      font-size: clamp(40px, 7vw, 76px);
+      color: var(--farbe); line-height: 1.05; letter-spacing: 0.02em;
     }
-    #timer-box.warnung { border-bottom-color: #e8a33d; }
-    #timer-box.warnung #timer-display { color: #e8a33d; }
-    #timer-box.fertig { border-bottom-color: #e84b4b; animation: blinken 0.7s steps(1) infinite; }
-    #timer-box.fertig #timer-display { color: #e84b4b; }
+    .timer-zeile.warnung { border-bottom-color: #e8a33d; }
+    .timer-zeile.warnung .timer-display { color: #e8a33d; }
+    .timer-zeile.fertig { border-bottom-color: #e84b4b; animation: blinken 0.7s steps(1) infinite; }
+    .timer-zeile.fertig .timer-display { color: #e84b4b; }
     @keyframes blinken { 50% { background: #2a0000; } }
-    #timer-stop {
+    .timer-stop {
       background: transparent; border: 1px solid #444; color: #888;
       font-family: 'Courier New', monospace; font-size: 11px; letter-spacing: 0.1em;
       padding: 6px 14px; cursor: pointer; white-space: nowrap;
     }
-    #timer-stop:hover { border-color: #888; color: #ccc; }
+    .timer-stop:hover { border-color: #888; color: #ccc; }
 
     .phase-label {
       font-size: 11px; letter-spacing: 0.25em; color: #666; text-transform: uppercase;
@@ -152,11 +156,7 @@
 </head>
 <body>
 
-<div id="timer-box">
-  <div id="timer-label"></div>
-  <div id="timer-display">00:00</div>
-  <button id="timer-stop" onclick="timerStop()">Ausblenden</button>
-</div>
+<div id="timer-box"></div>
 
 <div id="wrap">
   <h1>Standalone Admin — Zeitstempel</h1>
@@ -241,69 +241,115 @@
   }
 
   // ── TIMER ──────────────────────────────────────────────
-  // Startet automatisch beim Klick auf bestimmte Zeitstempel-Buttons.
-  const TIMER_REGELN = [
-    { passt: n => /^Messung/.test(n),            sekunden: 120, label: "Messung" },
-    { passt: n => n === "Start EKG: Baseline",   sekunden: 600, label: "EKG-Baseline" },
-    { passt: n => n === "Start Interaktion",     sekunden: 600, label: "Interaktion" }
-  ];
+  // Mehrere Timer koennen gleichzeitig laufen (z.B. EKG-Baseline + Messung 1).
+  // Jeder Timer belegt einen "Slot"; ein neuer Timer ersetzt nur den im selben Slot.
+  // Optional folgt automatisch ein Anschluss-Timer (Messung -> Ruhephase).
+  const RUHEPHASE = { sekunden: 480, label: "Ruhephase", farbe: "ruhe" };
 
-  let timerInterval = null;
-
-  function timerFuerEreignis(name) {
-    const regel = TIMER_REGELN.find(r => r.passt(name));
-    if (regel) timerStart(regel.sekunden, regel.label);
+  function timerRegel(name) {
+    if (name === "Messung 1")
+      return { slot: "messung", sekunden: 120, label: "Messung" };
+    if (/^Messung [4-6]$/.test(name))
+      return { slot: "messung", sekunden: 120, label: "Messung", folge: RUHEPHASE };
+    if (name === "Messung 7")
+      return { slot: "messung", sekunden: 120, label: "Messung" }; // letzte Messung: keine Ruhephase
+    if (name === "Start EKG: Baseline")
+      return { slot: "baseline", sekunden: 600, label: "EKG-Baseline" };
+    if (name === "Start Interaktion")
+      return { slot: "interaktion", sekunden: 600, label: "Interaktion" };
+    return null; // u.a. Messung 2 / Messung 3: kein Timer
   }
 
-  function timerStart(sekunden, label) {
-    const ende = Date.now() + sekunden * 1000;
-    localStorage.setItem("sa_admin_timer", JSON.stringify({ ende, label }));
+  const SLOT_REIHENFOLGE = ["baseline", "interaktion", "messung"];
+  let timerInterval = null;
+
+  function ladeTimer() {
+    return JSON.parse(localStorage.getItem("sa_admin_timers") || "{}");
+  }
+  function speichereTimer(t) {
+    localStorage.setItem("sa_admin_timers", JSON.stringify(t));
+  }
+
+  function timerFuerEreignis(name) {
+    const r = timerRegel(name);
+    if (!r) return;
+    const t = ladeTimer();
+    t[r.slot] = {
+      label: r.label, farbe: r.farbe || "",
+      ende: Date.now() + r.sekunden * 1000,
+      folge: r.folge || null, gemeldet: false
+    };
+    speichereTimer(t);
+    timerAnzeigen();
+  }
+
+  function timerStop(slot) {
+    const t = ladeTimer();
+    delete t[slot];
+    speichereTimer(t);
     timerAnzeigen();
   }
 
   function timerAnzeigen() {
-    const daten = JSON.parse(localStorage.getItem("sa_admin_timer") || "null");
-    if (!daten) return;
-    if (timerInterval) clearInterval(timerInterval);
-    const box = document.getElementById("timer-box");
-    box.classList.remove("fertig", "warnung");
-    document.getElementById("timer-label").textContent = daten.label;
-    box.style.display = "flex";
-    document.body.classList.add("timer-aktiv");
-    timerTick(daten);
-    timerInterval = setInterval(() => timerTick(daten), 250);
-  }
-
-  function timerTick(daten) {
-    const restMs = daten.ende - Date.now();
-    const box = document.getElementById("timer-box");
-    const anzeige = document.getElementById("timer-display");
-
-    if (restMs <= 0) {
-      anzeige.textContent = "00:00";
-      box.classList.remove("warnung");
-      if (!box.classList.contains("fertig")) {
-        box.classList.add("fertig");
-        timerAlarm();
-      }
-      clearInterval(timerInterval);
-      timerInterval = null;
-      return;
-    }
-    const s = Math.ceil(restMs / 1000);
-    anzeige.textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" +
-                          String(s % 60).padStart(2, "0");
-    box.classList.toggle("warnung", s <= 15);
-  }
-
-  function timerStop() {
     if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-    localStorage.removeItem("sa_admin_timer");
-    localStorage.removeItem("sa_admin_vl");
+    timerTick();
+    if (Object.keys(ladeTimer()).length) timerInterval = setInterval(timerTick, 250);
+  }
+
+  function timerTick() {
+    const t = ladeTimer();
+    const jetzt = Date.now();
+    let geaendert = false, alarm = false;
+
+    // Abgelaufene Timer mit Anschluss-Timer weiterschalten. Der Anschluss startet
+    // exakt am Ende des vorigen (nicht erst beim Neuladen der Seite).
+    for (const slot of Object.keys(t)) {
+      while (t[slot].ende <= jetzt && t[slot].folge) {
+        const f = t[slot].folge;
+        t[slot] = { label: f.label, farbe: f.farbe || "",
+                    ende: t[slot].ende + f.sekunden * 1000, folge: null, gemeldet: false };
+        geaendert = true;
+        alarm = true;
+      }
+      if (t[slot].ende <= jetzt && !t[slot].gemeldet) {
+        t[slot].gemeldet = true;
+        geaendert = true;
+        alarm = true;
+      }
+    }
+    if (geaendert) speichereTimer(t);
+    if (alarm) timerAlarm();
+
     const box = document.getElementById("timer-box");
-    box.style.display = "none";
-    box.classList.remove("fertig", "warnung");
-    document.body.classList.remove("timer-aktiv");
+    const slots = SLOT_REIHENFOLGE.filter(s => t[s]);
+    box.innerHTML = "";
+    slots.forEach(slot => {
+      const d = t[slot];
+      const rest = d.ende - jetzt;
+      const zeile = document.createElement("div");
+      zeile.className = "timer-zeile" + (d.farbe ? " " + d.farbe : "");
+      let text = "00:00";
+      if (rest <= 0) {
+        zeile.classList.add("fertig");
+      } else {
+        const s = Math.ceil(rest / 1000);
+        text = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+        if (s <= 15) zeile.classList.add("warnung");
+      }
+      zeile.innerHTML =
+        '<div class="timer-label"></div><div class="timer-display"></div>' +
+        '<button class="timer-stop">Ausblenden</button>';
+      zeile.querySelector(".timer-label").textContent = d.label;
+      zeile.querySelector(".timer-display").textContent = text;
+      zeile.querySelector(".timer-stop").onclick = () => timerStop(slot);
+      box.appendChild(zeile);
+    });
+
+    box.style.display = slots.length ? "flex" : "none";
+    // Inhalt um die Hoehe der Timer-Leiste nach unten schieben
+    document.body.style.paddingTop = slots.length ? (box.offsetHeight + 24) + "px" : "";
+
+    if (!slots.length && timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   }
 
   function timerAlarm() {
@@ -373,7 +419,8 @@
     });
     markiereGeklickteButtons();
 
-  // Laufenden Timer nach einem Reload fortsetzen
+  // Laufende Timer nach einem Reload fortsetzen
+  localStorage.removeItem("sa_admin_timer"); // Altformat
   timerAnzeigen();
   }
   const triadInput = document.getElementById("triad-input");
@@ -558,6 +605,8 @@
     localStorage.removeItem("sa_admin_triadId");
     localStorage.removeItem("sa_admin_bedingung");
     localStorage.removeItem("sa_admin_timer");
+    localStorage.removeItem("sa_admin_timers");
+    localStorage.removeItem("sa_admin_vl");
     location.reload();
   }
 
