@@ -39,7 +39,8 @@
       text-transform: uppercase; margin-bottom: 1rem; margin-top: 2rem;
     }
 
-    .event-buttons { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1.8rem; }
+    .event-buttons { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.8rem; }
+    .btn-zeile { display: flex; gap: 0.6rem; flex-wrap: wrap; }
     .cond-btn {
       background: transparent; border: 2px solid #333; color: #777;
       font-family: 'Courier New', monospace; font-size: 12px; letter-spacing: 0.1em;
@@ -174,13 +175,25 @@
 
   <p class="phase-label">Vor (f-)TSST</p>
   <div class="event-buttons">
-    <button class="q-btn" onclick="logEvent('Begrüßung', this)">Begrüßung</button>
-    <button class="q-btn" onclick="logEvent('Start EKG: T', this)">Start EKG: T</button>
-    <button class="q-btn" onclick="logEvent('Start EKG: P', this)">Start EKG: P</button>
-    <button class="q-btn" onclick="logEvent('Start EKG: K', this)">Start EKG: K</button>
-    <button class="q-btn" onclick="logEvent('Start EKG: Baseline', this)">Start EKG: Baseline</button>
-    <button class="q-btn" onclick="logEvent('Messung 1', this)">Messung 1</button>
-    <button class="q-btn" onclick="logEvent('Ende EKG: Baseline', this)">Ende EKG: Baseline</button>
+    <div class="btn-zeile">
+      <button class="q-btn" onclick="logEvent('Begrüßung', this)">Begrüßung</button>
+    </div>
+    <div class="btn-zeile">
+      <button class="q-btn" onclick="logEvent('Start EKG: T', this)">Start EKG: T</button>
+      <button class="q-btn" onclick="logEvent('Start EKG: P', this)">Start EKG: P</button>
+      <button class="q-btn" onclick="logEvent('Start EKG: K', this)">Start EKG: K</button>
+    </div>
+    <div class="btn-zeile">
+      <button class="q-btn" onclick="logEvent('Start EKG: Baseline', this)">Start EKG: Baseline</button>
+      <button class="q-btn" onclick="logEvent('Messung 1', this)">Messung 1</button>
+    </div>
+  </div>
+
+  <p class="phase-label">Konferenzraum</p>
+  <div class="event-buttons">
+    <div class="btn-zeile">
+      <button class="q-btn" onclick="logEvent('Messung 2 (P + K)', this)">Messung 2 (P + K)</button>
+    </div>
   </div>
 
   <p class="phase-label" id="phase-tsst-label">(f-)TSST</p>
@@ -188,17 +201,29 @@
 
   <p class="phase-label">Nach (f-)TSST</p>
   <div class="event-buttons">
-    <button class="q-btn" onclick="logEvent('Start Interaktion', this)">Start Interaktion</button>
-    <button class="q-btn" onclick="logEvent('Ende Interaktion', this)">Ende Interaktion</button>
-    <button class="q-btn klopfen" onclick="logEvent('EKG-Klopfen', this)">EKG-Klopfen</button>
-    <button class="q-btn" onclick="logEvent('Messung 4', this)">Messung 4</button>
-    <button class="q-btn" onclick="logEvent('Start Ruhephase', this)">Start Ruhephase</button>
-    <button class="q-btn" onclick="logEvent('Messung 5', this)">Messung 5</button>
-    <button class="q-btn" onclick="logEvent('Messung 6', this)">Messung 6</button>
-    <button class="q-btn" onclick="logEvent('Stop EKG: T', this)">Stop EKG: T</button>
-    <button class="q-btn" onclick="logEvent('Stop EKG: P', this)">Stop EKG: P</button>
-    <button class="q-btn" onclick="logEvent('Stop EKG: K', this)">Stop EKG: K</button>
-    <button class="q-btn" onclick="logEvent('Messung 7', this)">Messung 7</button>
+    <div class="btn-zeile">
+      <button class="q-btn" onclick="logEvent('Start Interaktion', this)">Start Interaktion</button>
+      <button class="q-btn" onclick="logEvent('Ende Interaktion', this)">Ende Interaktion</button>
+      <button class="q-btn klopfen" onclick="logEvent('EKG-Klopfen Interaktion', this)">EKG-Klopfen Interaktion</button>
+    </div>
+    <div class="btn-zeile">
+      <button class="q-btn" onclick="logEvent('Messung 4', this)">Messung 4</button>
+    </div>
+    <div class="btn-zeile">
+      <button class="q-btn" onclick="logEvent('Start Ruhephase', this)">Start Ruhephase</button>
+    </div>
+    <div class="btn-zeile">
+      <button class="q-btn" onclick="logEvent('Messung 5', this)">Messung 5</button>
+      <button class="q-btn" onclick="logEvent('Messung 6', this)">Messung 6</button>
+    </div>
+    <div class="btn-zeile">
+      <button class="q-btn" onclick="logEvent('Stop EKG: T', this)">Stop EKG: T</button>
+      <button class="q-btn" onclick="logEvent('Stop EKG: P', this)">Stop EKG: P</button>
+      <button class="q-btn" onclick="logEvent('Stop EKG: K', this)">Stop EKG: K</button>
+    </div>
+    <div class="btn-zeile">
+      <button class="q-btn" onclick="logEvent('Messung 7', this)">Messung 7</button>
+    </div>
   </div>
 
   <div id="sync-section">
@@ -401,35 +426,40 @@
   function baueTsstButtons() {
     const box = document.getElementById("tsst-buttons");
     box.innerHTML = "";
-    const namen = [
-      "Messung 2 (P + K)",
-      "Messung 2 (T)",
-      "Start " + bedingung + " Ant.",
-      "Start " + bedingung + " Int.",
-      "Start " + bedingung + " Calc.",
-      "Ende " + bedingung,
-      "Messung 3 (T)"
+    // Zeilenweise Gliederung; Klopf-Marker zuerst, danach Antizipation vor Messung 2 (T)
+    const zeilen = [
+      [{ name: "EKG-Klopfen (f-)TSST", klopfen: true }],
+      [{ name: "Start " + bedingung + " Ant." }, { name: "Messung 2 (T)" }],
+      [{ name: "Start " + bedingung + " Int." }, { name: "Start " + bedingung + " Calc." }, { name: "Ende " + bedingung }],
+      [{ name: "Messung 3 (T)" }]
     ];
-    namen.forEach(name => {
-      const btn = document.createElement("button");
-      btn.className = "q-btn";
-      btn.textContent = name;
-      btn.onclick = () => logEvent(name, btn);
-      box.appendChild(btn);
+    zeilen.forEach(zeile => {
+      const div = document.createElement("div");
+      div.className = "btn-zeile";
+      zeile.forEach(e => {
+        const btn = document.createElement("button");
+        btn.className = "q-btn" + (e.klopfen ? " klopfen" : "");
+        btn.textContent = e.name;
+        btn.onclick = () => logEvent(e.name, btn);
+        div.appendChild(btn);
+      });
+      box.appendChild(div);
     });
     markiereGeklickteButtons();
-
-  // Laufende Timer nach einem Reload fortsetzen
-  localStorage.removeItem("sa_admin_timer"); // Altformat
-  timerAnzeigen();
   }
+
+  // ── INITIALISIERUNG ────────────────────────────────────
   const triadInput = document.getElementById("triad-input");
   triadInput.value = localStorage.getItem("sa_admin_triadId") || "";
   triadInput.addEventListener("input", () => {
     localStorage.setItem("sa_admin_triadId", triadInput.value.trim());
   });
 
-  // Bedingung + TSST-Buttons initialisieren
+  document.getElementById("notiz-input").addEventListener("keydown", e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") notizSpeichern();
+  });
+
+  // Bedingung, VL und (f-)TSST-Buttons aufbauen
   setBedingung(bedingung, null);
   setVL(vl, null);
 
@@ -440,7 +470,11 @@
   }
   markiereGeklickteButtons();
 
-  // Einmal automatisch beim Start abgleichen (still, ohne Blockieren)
+  // Laufende Timer nach einem Reload fortsetzen
+  localStorage.removeItem("sa_admin_timer"); // Altformat aus fruehereren Versionen
+  timerAnzeigen();
+
+  // Einmal automatisch mit der Referenzzeit abgleichen (still, ohne zu blockieren)
   window.addEventListener("load", () => { setTimeout(zeitSync, 800); });
 
   function logEvent(name, btn) {
