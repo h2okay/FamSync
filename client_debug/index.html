@@ -325,7 +325,6 @@
 <div id="menu-screen" class="menu-wrap" style="display:none;">
   <div class="menu-header">
     <div class="menu-id" id="menu-id-anzeige"></div>
-    <div class="menu-sub" id="menu-sub-anzeige"></div>
   </div>
 
   <div class="stai-box">
@@ -620,8 +619,6 @@
     document.getElementById("menu-screen").style.display = "block";
 
     document.getElementById("menu-id-anzeige").textContent = participantId;
-    document.getElementById("menu-sub-anzeige").textContent =
-      gruppe + (altersgruppe ? " · " + (altersgruppe === "u13" ? "unter 13" : "13+") : "");
 
     const erledigt = getErledigt();
 

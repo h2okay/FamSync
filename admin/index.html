@@ -485,6 +485,8 @@
       bedingung: bedingung,
       vl: vl,
       event: name,
+      tablet_zeit: ts,
+      tablet_time_ms: jetzt.getTime(),
       time: jetzt.getTime(),
       server_timestamp: ts
     };
@@ -513,7 +515,9 @@
       textInhalt = " — " + eintrag.server_timestamp + ": " + eintrag.notiz;
     } else if (istSync) {
       const vz = eintrag.offset_ms > 0 ? "+" : "";
-      textInhalt = " — " + eintrag.server_timestamp + ": Offset " + vz + eintrag.offset_ms +
+      textInhalt = " — Tablet " + (eintrag.tablet_zeit || eintrag.server_timestamp) +
+                   " | Internet " + (eintrag.internet_zeit || "—") +
+                   " | Offset " + vz + eintrag.offset_ms +
                    " ms (±" + Math.round(eintrag.rtt_ms / 2) + " ms)";
     } else {
       textInhalt = " — " + eintrag.server_timestamp;
@@ -585,15 +589,24 @@
     const beste = messungen[0];
     const jetzt = new Date();
 
+    // Tabletuhr und daraus abgeleitete Internet-(Referenz-)Zeit zum selben Moment
+    const tabletMs   = jetzt.getTime();
+    const internetMs = tabletMs + beste.offset;
+    const internetDt = new Date(internetMs);
+
     const eintrag = {
       triad_id: triadInput.value.trim() || "—",
       bedingung: bedingung,
       vl: vl,
       event: "Zeitabgleich",
       notiz: "Quelle: " + beste.api + " | " + messungen.length + " Messungen",
+      tablet_zeit: jetzt.toLocaleString("de-DE", { timeZone: "Europe/Berlin" }),
+      tablet_time_ms: tabletMs,
+      internet_zeit: internetDt.toLocaleString("de-DE", { timeZone: "Europe/Berlin" }),
+      internet_time_ms: internetMs,
       offset_ms: beste.offset,
       rtt_ms: beste.rtt,
-      time: jetzt.getTime(),
+      time: tabletMs,
       server_timestamp: jetzt.toLocaleString("de-DE", { timeZone: "Europe/Berlin" })
     };
     ereignisse.push(eintrag);
@@ -601,8 +614,10 @@
 
     const vz = beste.offset > 0 ? "+" : "";
     status.innerHTML =
+      "Tabletzeit: <span class='val'>" + eintrag.tablet_zeit + "</span><br>" +
+      "Internetzeit: <span class='val'>" + eintrag.internet_zeit + "</span><br>" +
       "Geräteuhr weicht ab um <span class='val'>" + vz + beste.offset + " ms</span> " +
-      "(Referenzzeit minus Geräteuhr)<br>" +
+      "(Internetzeit minus Tabletzeit)<br>" +
       "Messunsicherheit ca. <span class='val'>±" + Math.round(beste.rtt / 2) + " ms</span> " +
       "(RTT " + beste.rtt + " ms, " + messungen.length + " Messungen, Quelle " + beste.api + ")";
 
@@ -623,6 +638,8 @@
       vl: vl,
       event: "Notiz",
       notiz: text,
+      tablet_zeit: jetzt.toLocaleString("de-DE", { timeZone: "Europe/Berlin" }),
+      tablet_time_ms: jetzt.getTime(),
       time: jetzt.getTime(),
       server_timestamp: jetzt.toLocaleString("de-DE", { timeZone: "Europe/Berlin" })
     };
@@ -649,7 +666,9 @@
       document.getElementById("export-msg").textContent = "Keine Ereignisse vorhanden.";
       return;
     }
-    const cols = ["triad_id", "bedingung", "vl", "event", "notiz", "offset_ms", "rtt_ms", "time", "server_timestamp"];
+    const cols = ["triad_id", "bedingung", "vl", "event", "notiz",
+                  "tablet_zeit", "tablet_time_ms", "internet_zeit", "internet_time_ms",
+                  "offset_ms", "rtt_ms", "time", "server_timestamp"];
     const csvLines = [cols.join(",")];
     ereignisse.forEach(entry => {
       const row = cols.map(col => '"' + String(entry[col] ?? "").replace(/"/g, '""') + '"');
